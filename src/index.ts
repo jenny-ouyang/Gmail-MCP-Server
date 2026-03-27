@@ -370,16 +370,48 @@ async function main() {
         console.log('Sign in with the correct Google account.\n');
         await authenticate();
 
-        const scriptPath = path.join(accountDir, 'start-mcp.sh');
-        const script = `#!/bin/bash\nexport GMAIL_OAUTH_PATH=${accountOauthPath}\nexport GMAIL_CREDENTIALS_PATH=${accountCredPath}\nexport GMAIL_ACCOUNT_NAME=${account}\nexec npx -y gmail-mcp-multiauth\n`;
-        fs.writeFileSync(scriptPath, script);
-        fs.chmodSync(scriptPath, '755');
+        // Auto-update MCP config files
+        const mcpEntry = {
+            type: 'stdio',
+            command: 'npx',
+            args: ['-y', 'gmail-mcp-multiauth'],
+            env: {
+                GMAIL_OAUTH_PATH: accountOauthPath,
+                GMAIL_CREDENTIALS_PATH: accountCredPath,
+                GMAIL_ACCOUNT_NAME: account
+            }
+        };
 
-        console.log(`\nDone! Add this to your MCP config:\n`);
-        console.log(`  "gmail-${account}": {`);
-        console.log(`    "command": "${scriptPath}",`);
-        console.log(`    "args": []`);
-        console.log(`  }`);
+        const configPaths = [
+            path.join(os.homedir(), '.cursor', 'mcp.json'),
+            path.join(os.homedir(), '.claude.json'),
+            path.join(os.homedir(), 'Library', 'Application Support', 'Claude', 'claude_desktop_config.json'),
+        ];
+
+        let updated: string[] = [];
+        for (const configPath of configPaths) {
+            try {
+                if (!fs.existsSync(configPath)) continue;
+                const raw = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+                const servers = raw.mcpServers ?? raw;
+                servers[`gmail-${account}`] = mcpEntry;
+                if (raw.mcpServers) raw.mcpServers = servers;
+                fs.writeFileSync(configPath, JSON.stringify(raw, null, 2));
+                updated.push(configPath);
+            } catch (e) {
+                // skip files we can't parse
+            }
+        }
+
+        console.log(`\nDone! gmail-${account} is ready.`);
+        if (updated.length > 0) {
+            console.log(`\nAuto-updated MCP configs:`);
+            updated.forEach(p => console.log(`  ✓ ${p}`));
+            console.log(`\nRestart Cursor / Claude Desktop to connect.`);
+        } else {
+            console.log(`\nNo MCP config files found. Add this manually:\n`);
+            console.log(JSON.stringify({ [`gmail-${account}`]: mcpEntry }, null, 2));
+        }
         process.exit(0);
     }
 
