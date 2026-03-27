@@ -34,42 +34,29 @@ cp gcp-oauth.keys.json ~/.gmail-business/
 # repeat for each account
 ```
 
-### 3. Authenticate each account
+### 3. Run setup for each account
 
-Run auth for each account, one at a time. Each opens a browser — sign in with the correct Google account:
-
-```bash
-GMAIL_OAUTH_PATH=~/.gmail-personal/gcp-oauth.keys.json \
-GMAIL_CREDENTIALS_PATH=~/.gmail-personal/credentials.json \
-npx -y @jessicaoy89/gmail-mcp auth
-```
+One command per account. It opens a browser, you sign in with the right Google account, and it creates everything automatically.
 
 ```bash
-GMAIL_OAUTH_PATH=~/.gmail-business/gcp-oauth.keys.json \
-GMAIL_CREDENTIALS_PATH=~/.gmail-business/credentials.json \
-npx -y @jessicaoy89/gmail-mcp auth
+# The second argument is where your downloaded keys file is right now.
+# It gets copied into ~/.gmail-personal/ — Downloads is not used after this.
+npx gmail-mcp-multiauth setup personal ~/Downloads/gcp-oauth.keys.json
+npx gmail-mcp-multiauth setup work     ~/Downloads/gcp-oauth.keys.json
+npx gmail-mcp-multiauth setup client   ~/Downloads/gcp-oauth.keys.json
 ```
 
-Repeat for each account. Each writes a `credentials.json` to its directory.
-
-### 4. Create wrapper scripts
-
-Create a start script per account:
-
-**`~/.gmail-personal/start-mcp.sh`**
-```bash
-#!/bin/bash
-export GMAIL_OAUTH_PATH=~/.gmail-personal/gcp-oauth.keys.json
-export GMAIL_CREDENTIALS_PATH=~/.gmail-personal/credentials.json
-export GMAIL_ACCOUNT_NAME=personal
-exec npx -y @jessicaoy89/gmail-mcp
+After each command, these files exist in their own folder:
+```
+~/.gmail-personal/
+  gcp-oauth.keys.json   ← copied from your download
+  credentials.json      ← written after you authenticate
+  start-mcp.sh          ← generated, ready to use
 ```
 
-```bash
-chmod +x ~/.gmail-personal/start-mcp.sh
-```
+The setup command also prints the exact JSON block to paste into your MCP config.
 
-### 5. Add to your MCP config
+### 4. Add to your MCP config
 
 **Cursor** (`~/.cursor/mcp.json`) or **Claude Desktop** (`~/Library/Application Support/Claude/claude_desktop_config.json`):
 
