@@ -225,7 +225,8 @@ const ReadEmailSchema = z.object({
 
 const SearchEmailsSchema = z.object({
     query: z.string().describe("Gmail search query (e.g., 'from:example@gmail.com')"),
-    maxResults: z.number().optional().describe("Maximum number of results to return"),
+    maxResults: z.number().optional().describe("Maximum number of results to return (1-500, default 10)"),
+    pageToken: z.string().optional().describe("Page token from a previous search to get the next page of results"),
 });
 
 // Updated schema to include removeLabelIds
@@ -778,10 +779,12 @@ async function main() {
                     const response = await gmail.users.messages.list({
                         userId: 'me',
                         q: validatedArgs.query,
-                        maxResults: validatedArgs.maxResults || 10,
+                        maxResults: Math.min(validatedArgs.maxResults || 10, 500),
+                        pageToken: validatedArgs.pageToken,
                     });
 
                     const messages = response.data.messages || [];
+                    const nextPageToken = response.data.nextPageToken;
                     const results = await Promise.all(
                         messages.map(async (msg) => {
                             const detail = await gmail.users.messages.get({
@@ -800,13 +803,17 @@ async function main() {
                         })
                     );
 
+                    const footer = nextPageToken
+                        ? `\n--- ${results.length} results. More available. nextPageToken: ${nextPageToken} ---`
+                        : `\n--- ${results.length} results (end of list) ---`;
+
                     return {
                         content: [
                             {
                                 type: "text",
                                 text: results.map(r =>
                                     `ID: ${r.id}\nSubject: ${r.subject}\nFrom: ${r.from}\nDate: ${r.date}\n`
-                                ).join('\n'),
+                                ).join('\n') + footer,
                             },
                         ],
                     };
