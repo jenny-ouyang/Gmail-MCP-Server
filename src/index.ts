@@ -23,6 +23,7 @@ import { createFilter, listFilters, getFilter, deleteFilter, filterTemplates, Gm
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Configuration paths
+const ACCOUNT_NAME = process.env.GMAIL_ACCOUNT_NAME || 'default';
 const CONFIG_DIR = path.join(os.homedir(), '.gmail-mcp');
 const OAUTH_PATH = process.env.GMAIL_OAUTH_PATH || path.join(CONFIG_DIR, 'gcp-oauth.keys.json');
 const CREDENTIALS_PATH = process.env.GMAIL_CREDENTIALS_PATH || path.join(CONFIG_DIR, 'credentials.json');
@@ -95,8 +96,8 @@ function extractEmailContent(messagePart: GmailMessagePart): EmailContent {
 
 async function loadCredentials() {
     try {
-        // Create config directory if it doesn't exist
-        if (!process.env.GMAIL_OAUTH_PATH && !CREDENTIALS_PATH &&!fs.existsSync(CONFIG_DIR)) {
+        // Create config directory if it doesn't exist (only needed for default path)
+        if (!process.env.GMAIL_CREDENTIALS_PATH && !fs.existsSync(CONFIG_DIR)) {
             fs.mkdirSync(CONFIG_DIR, { recursive: true });
         }
 
@@ -137,6 +138,19 @@ async function loadCredentials() {
             const credentials = JSON.parse(fs.readFileSync(CREDENTIALS_PATH, 'utf8'));
             oauth2Client.setCredentials(credentials);
         }
+
+        // Persist refreshed tokens so accounts don't lose auth on restart
+        oauth2Client.on('tokens', (tokens) => {
+            try {
+                let saved: Record<string, unknown> = {};
+                if (fs.existsSync(CREDENTIALS_PATH)) {
+                    saved = JSON.parse(fs.readFileSync(CREDENTIALS_PATH, 'utf8'));
+                }
+                fs.writeFileSync(CREDENTIALS_PATH, JSON.stringify({ ...saved, ...tokens }));
+            } catch (e) {
+                console.error('Failed to save refreshed tokens:', e);
+            }
+        });
     } catch (error) {
         console.error('Error loading credentials:', error);
         process.exit(1);
@@ -333,8 +347,8 @@ async function main() {
 
     // Server implementation
     const server = new Server({
-        name: "gmail",
-        version: "1.0.0",
+        name: `gmail-${ACCOUNT_NAME}`,
+        version: "1.1.0",
         capabilities: {
             tools: {},
         },

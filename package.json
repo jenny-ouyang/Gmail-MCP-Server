@@ -1,7 +1,7 @@
 {
-  "name": "@gongrzhe/server-gmail-autoauth-mcp",
-  "version": "1.1.11",
-  "description": "Gmail MCP server with auto authentication support",
+  "name": "@jenny-ouyang/gmail-mcp",
+  "version": "1.2.0",
+  "description": "Gmail MCP server with multi-account support and token refresh persistence",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
@@ -29,16 +29,16 @@
     "claude",
     "auto-auth"
   ],
-  "author": "gongrzhe",
+  "author": "jenny-ouyang",
   "license": "ISC",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/gongrzhe/server-gmail-autoauth-mcp.git"
+    "url": "git+https://github.com/jenny-ouyang/Gmail-MCP-Server.git"
   },
   "bugs": {
-    "url": "https://github.com/gongrzhe/server-gmail-autoauth-mcp/issues"
+    "url": "https://github.com/jenny-ouyang/Gmail-MCP-Server/issues"
   },
-  "homepage": "https://github.com/gongrzhe/server-gmail-autoauth-mcp#readme",
+  "homepage": "https://github.com/jenny-ouyang/Gmail-MCP-Server#readme",
   "publishConfig": {
     "access": "public"
   },
