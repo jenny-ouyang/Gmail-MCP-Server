@@ -1,5 +1,5 @@
 {
-  "name": "@jessicaoy89/gmail-mcp",
+  "name": "gmail-mcp-multiauth",
   "version": "1.2.0",
   "description": "Gmail MCP server with multi-account support and token refresh persistence",
   "type": "module",
