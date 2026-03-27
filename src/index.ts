@@ -353,7 +353,14 @@ async function main() {
         fs.mkdirSync(accountDir, { recursive: true });
 
         if (oauthSource) {
-            fs.copyFileSync(oauthSource, accountOauthPath);
+            const resolvedSource = oauthSource.replace(/^~/, os.homedir());
+            if (!fs.existsSync(resolvedSource)) {
+                console.error(`Error: File not found: ${resolvedSource}`);
+                console.error(`Download gcp-oauth.keys.json from Google Cloud Console first.`);
+                console.error(`Or skip the path if keys already exist in ${accountDir}`);
+                process.exit(1);
+            }
+            fs.copyFileSync(resolvedSource, accountOauthPath);
             console.log(`Copied OAuth keys to ${accountOauthPath}`);
         } else if (!fs.existsSync(accountOauthPath)) {
             console.error(`Error: No gcp-oauth.keys.json at ${accountOauthPath}`);
