@@ -334,6 +334,55 @@ const DownloadAttachmentSchema = z.object({
 
 // Main function
 async function main() {
+    // setup <account-name> [oauth-keys-path]
+    // Authenticates an account and writes a ready-to-use start-mcp.sh
+    if (process.argv[2] === 'setup') {
+        const account = process.argv[3];
+        const oauthSource = process.argv[4];
+
+        if (!account) {
+            console.error('Usage: npx gmail-mcp-multiauth setup <account-name> [path-to-gcp-oauth.keys.json]');
+            console.error('Example: npx gmail-mcp-multiauth setup personal ~/Downloads/gcp-oauth.keys.json');
+            process.exit(1);
+        }
+
+        const accountDir = path.join(os.homedir(), `.gmail-${account}`);
+        const accountOauthPath = path.join(accountDir, 'gcp-oauth.keys.json');
+        const accountCredPath = path.join(accountDir, 'credentials.json');
+
+        fs.mkdirSync(accountDir, { recursive: true });
+
+        if (oauthSource) {
+            fs.copyFileSync(oauthSource, accountOauthPath);
+            console.log(`Copied OAuth keys to ${accountOauthPath}`);
+        } else if (!fs.existsSync(accountOauthPath)) {
+            console.error(`Error: No gcp-oauth.keys.json at ${accountOauthPath}`);
+            console.error(`Provide a path: npx gmail-mcp-multiauth setup ${account} ~/Downloads/gcp-oauth.keys.json`);
+            process.exit(1);
+        }
+
+        process.env.GMAIL_OAUTH_PATH = accountOauthPath;
+        process.env.GMAIL_CREDENTIALS_PATH = accountCredPath;
+        process.env.GMAIL_ACCOUNT_NAME = account;
+
+        await loadCredentials();
+        console.log(`\nOpening browser to authenticate: ${account}`);
+        console.log('Sign in with the correct Google account.\n');
+        await authenticate();
+
+        const scriptPath = path.join(accountDir, 'start-mcp.sh');
+        const script = `#!/bin/bash\nexport GMAIL_OAUTH_PATH=${accountOauthPath}\nexport GMAIL_CREDENTIALS_PATH=${accountCredPath}\nexport GMAIL_ACCOUNT_NAME=${account}\nexec npx -y gmail-mcp-multiauth\n`;
+        fs.writeFileSync(scriptPath, script);
+        fs.chmodSync(scriptPath, '755');
+
+        console.log(`\nDone! Add this to your MCP config:\n`);
+        console.log(`  "gmail-${account}": {`);
+        console.log(`    "command": "${scriptPath}",`);
+        console.log(`    "args": []`);
+        console.log(`  }`);
+        process.exit(0);
+    }
+
     await loadCredentials();
 
     if (process.argv[2] === 'auth') {
