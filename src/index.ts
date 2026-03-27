@@ -223,6 +223,14 @@ const ReadEmailSchema = z.object({
     messageId: z.string().describe("ID of the email message to retrieve"),
 });
 
+const GetLabelInfoSchema = z.object({
+    labelName: z.string().describe("Label name or ID (e.g. 'INBOX', 'UNREAD', 'SENT', or a custom label name)"),
+});
+
+const CountEmailsSchema = z.object({
+    query: z.string().describe("Gmail search query (e.g. 'is:unread in:inbox after:2026/03/01 before:2026/03/28')"),
+});
+
 const SearchEmailsSchema = z.object({
     query: z.string().describe("Gmail search query (e.g., 'from:example@gmail.com')"),
     maxResults: z.number().optional().describe("Maximum number of results to return (1-500, default 10)"),
@@ -541,6 +549,16 @@ async function main() {
                 name: "download_attachment",
                 description: "Downloads an email attachment to a specified location",
                 inputSchema: zodToJsonSchema(DownloadAttachmentSchema),
+            },
+            {
+                name: "get_label_info",
+                description: "Returns stats for a Gmail label: total messages, unread count, total threads, unread threads. Use label name like INBOX, UNREAD, SENT, or a custom label name.",
+                inputSchema: zodToJsonSchema(GetLabelInfoSchema),
+            },
+            {
+                name: "count_emails",
+                description: "Counts emails matching a Gmail search query. Paginates through all results efficiently — no 500 limit. Supports time brackets: after:2026/03/01, before:2026/03/28, newer_than:7d, older_than:30d.",
+                inputSchema: zodToJsonSchema(CountEmailsSchema),
             },
         ],
     }))
@@ -1292,6 +1310,65 @@ async function main() {
                             ],
                         };
                     }
+                }
+
+                case "get_label_info": {
+                    const validatedArgs = GetLabelInfoSchema.parse(args);
+                    const labelId = validatedArgs.labelName.toUpperCase();
+
+                    // Try as system label ID first, then search by name
+                    let label;
+                    try {
+                        const res = await gmail.users.labels.get({ userId: 'me', id: labelId });
+                        label = res.data;
+                    } catch {
+                        // Not a system label — search by name
+                        const listRes = await gmail.users.labels.list({ userId: 'me' });
+                        const match = (listRes.data.labels || []).find(
+                            l => l.name?.toLowerCase() === validatedArgs.labelName.toLowerCase()
+                        );
+                        if (!match?.id) throw new Error(`Label not found: ${validatedArgs.labelName}`);
+                        const res = await gmail.users.labels.get({ userId: 'me', id: match.id });
+                        label = res.data;
+                    }
+
+                    return {
+                        content: [{
+                            type: "text",
+                            text: [
+                                `Label: ${label.name}`,
+                                `Messages total: ${label.messagesTotal ?? 'n/a'}`,
+                                `Messages unread: ${label.messagesUnread ?? 'n/a'}`,
+                                `Threads total: ${label.threadsTotal ?? 'n/a'}`,
+                                `Threads unread: ${label.threadsUnread ?? 'n/a'}`,
+                            ].join('\n'),
+                        }],
+                    };
+                }
+
+                case "count_emails": {
+                    const validatedArgs = CountEmailsSchema.parse(args);
+                    let total = 0;
+                    let pageToken: string | undefined;
+
+                    do {
+                        const res = await gmail.users.messages.list({
+                            userId: 'me',
+                            q: validatedArgs.query,
+                            maxResults: 500,
+                            pageToken,
+                            fields: 'nextPageToken,resultSizeEstimate,messages/id',
+                        } as any);
+                        total += (res.data.messages || []).length;
+                        pageToken = res.data.nextPageToken || undefined;
+                    } while (pageToken);
+
+                    return {
+                        content: [{
+                            type: "text",
+                            text: `Count: ${total}\nQuery: ${validatedArgs.query}`,
+                        }],
+                    };
                 }
 
                 default:
