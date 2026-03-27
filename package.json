@@ -1,11 +1,11 @@
 {
-  "name": "@jenny-ouyang/gmail-mcp",
+  "name": "@jessicaoy89/gmail-mcp",
   "version": "1.2.0",
   "description": "Gmail MCP server with multi-account support and token refresh persistence",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "gmail-mcp": "./dist/index.js"
+    "gmail-mcp": "dist/index.js"
   },
   "scripts": {
     "build": "tsc",
@@ -16,7 +16,8 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "setup-account.sh"
   ],
   "keywords": [
     "gmail",
