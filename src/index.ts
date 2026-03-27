@@ -157,7 +157,8 @@ async function loadCredentials() {
     }
 }
 
-async function authenticate() {
+async function authenticate(credPath?: string) {
+    const savePath = credPath || CREDENTIALS_PATH;
     const server = http.createServer();
     server.listen(3000);
 
@@ -189,7 +190,7 @@ async function authenticate() {
             try {
                 const { tokens } = await oauth2Client.getToken(code);
                 oauth2Client.setCredentials(tokens);
-                fs.writeFileSync(CREDENTIALS_PATH, JSON.stringify(tokens));
+                fs.writeFileSync(savePath, JSON.stringify(tokens));
 
                 res.writeHead(200);
                 res.end('Authentication successful! You can close this window.');
@@ -375,7 +376,7 @@ async function main() {
         await loadCredentials();
         console.log(`\nOpening browser to authenticate: ${account}`);
         console.log('Sign in with the correct Google account.\n');
-        await authenticate();
+        await authenticate(accountCredPath);
 
         // Auto-update MCP config files
         const mcpEntry = {
