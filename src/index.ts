@@ -417,9 +417,23 @@ async function main() {
             try {
                 if (!fs.existsSync(configPath)) continue;
                 const raw = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-                const servers = raw.mcpServers ?? raw;
-                servers[`gmail-${account}`] = mcpEntry;
-                if (raw.mcpServers) raw.mcpServers = servers;
+                const key = `gmail-${account}`;
+                const isClaudeConfig =
+                    configPath.endsWith('.claude.json') ||
+                    configPath.endsWith('claude_desktop_config.json');
+
+                // Claude config files must always use nested `mcpServers`.
+                // Cursor's mcp.json may be either nested or root-level map.
+                if (isClaudeConfig || Object.prototype.hasOwnProperty.call(raw, 'mcpServers')) {
+                    const currentServers =
+                        raw.mcpServers && typeof raw.mcpServers === 'object'
+                            ? raw.mcpServers
+                            : {};
+                    currentServers[key] = mcpEntry;
+                    raw.mcpServers = currentServers;
+                } else {
+                    raw[key] = mcpEntry;
+                }
                 fs.writeFileSync(configPath, JSON.stringify(raw, null, 2));
                 updated.push(configPath);
             } catch (e) {
