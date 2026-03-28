@@ -1,6 +1,6 @@
 {
   "name": "gmail-mcp-multiauth",
-  "version": "1.4.4",
+  "version": "1.4.5",
   "description": "Gmail MCP server with multi-account support and token refresh persistence",
   "type": "module",
   "main": "dist/index.js",

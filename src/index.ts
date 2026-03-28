@@ -23,10 +23,15 @@ import { createFilter, listFilters, getFilter, deleteFilter, filterTemplates, Gm
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Configuration paths
-const ACCOUNT_NAME = process.env.GMAIL_ACCOUNT_NAME || 'default';
 const CONFIG_DIR = path.join(os.homedir(), '.gmail-mcp');
-const OAUTH_PATH = process.env.GMAIL_OAUTH_PATH || path.join(CONFIG_DIR, 'gcp-oauth.keys.json');
-const CREDENTIALS_PATH = process.env.GMAIL_CREDENTIALS_PATH || path.join(CONFIG_DIR, 'credentials.json');
+
+function getRuntimePaths() {
+    return {
+        accountName: process.env.GMAIL_ACCOUNT_NAME || 'default',
+        oauthPath: process.env.GMAIL_OAUTH_PATH || path.join(CONFIG_DIR, 'gcp-oauth.keys.json'),
+        credentialsPath: process.env.GMAIL_CREDENTIALS_PATH || path.join(CONFIG_DIR, 'credentials.json'),
+    };
+}
 
 // Type definitions for Gmail API responses
 interface GmailMessagePart {
@@ -96,6 +101,8 @@ function extractEmailContent(messagePart: GmailMessagePart): EmailContent {
 
 async function loadCredentials() {
     try {
+        const { oauthPath, credentialsPath } = getRuntimePaths();
+
         // Create config directory if it doesn't exist (only needed for default path)
         if (!process.env.GMAIL_CREDENTIALS_PATH && !fs.existsSync(CONFIG_DIR)) {
             fs.mkdirSync(CONFIG_DIR, { recursive: true });
@@ -103,20 +110,19 @@ async function loadCredentials() {
 
         // Check for OAuth keys in current directory first, then in config directory
         const localOAuthPath = path.join(process.cwd(), 'gcp-oauth.keys.json');
-        let oauthPath = OAUTH_PATH;
 
         if (fs.existsSync(localOAuthPath)) {
             // If found in current directory, copy to config directory
-            fs.copyFileSync(localOAuthPath, OAUTH_PATH);
+            fs.copyFileSync(localOAuthPath, oauthPath);
             console.log('OAuth keys found in current directory, copied to global config.');
         }
 
-        if (!fs.existsSync(OAUTH_PATH)) {
+        if (!fs.existsSync(oauthPath)) {
             console.error('Error: OAuth keys file not found. Please place gcp-oauth.keys.json in current directory or', CONFIG_DIR);
             process.exit(1);
         }
 
-        const keysContent = JSON.parse(fs.readFileSync(OAUTH_PATH, 'utf8'));
+        const keysContent = JSON.parse(fs.readFileSync(oauthPath, 'utf8'));
         const keys = keysContent.installed || keysContent.web;
 
         if (!keys) {
@@ -134,8 +140,8 @@ async function loadCredentials() {
             callback
         );
 
-        if (fs.existsSync(CREDENTIALS_PATH)) {
-            const credentials = JSON.parse(fs.readFileSync(CREDENTIALS_PATH, 'utf8'));
+        if (fs.existsSync(credentialsPath)) {
+            const credentials = JSON.parse(fs.readFileSync(credentialsPath, 'utf8'));
             oauth2Client.setCredentials(credentials);
         }
 
@@ -143,10 +149,10 @@ async function loadCredentials() {
         oauth2Client.on('tokens', (tokens) => {
             try {
                 let saved: Record<string, unknown> = {};
-                if (fs.existsSync(CREDENTIALS_PATH)) {
-                    saved = JSON.parse(fs.readFileSync(CREDENTIALS_PATH, 'utf8'));
+                if (fs.existsSync(credentialsPath)) {
+                    saved = JSON.parse(fs.readFileSync(credentialsPath, 'utf8'));
                 }
-                fs.writeFileSync(CREDENTIALS_PATH, JSON.stringify({ ...saved, ...tokens }));
+                fs.writeFileSync(credentialsPath, JSON.stringify({ ...saved, ...tokens }));
             } catch (e) {
                 console.error('Failed to save refreshed tokens:', e);
             }
@@ -158,7 +164,8 @@ async function loadCredentials() {
 }
 
 async function authenticate(credPath?: string) {
-    const savePath = credPath || CREDENTIALS_PATH;
+    const { credentialsPath } = getRuntimePaths();
+    const savePath = credPath || credentialsPath;
     const server = http.createServer();
     server.listen(3000);
 
@@ -444,8 +451,9 @@ async function main() {
     const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
     // Server implementation
+    const { accountName } = getRuntimePaths();
     const server = new Server({
-        name: `gmail-${ACCOUNT_NAME}`,
+        name: `gmail-${accountName}`,
         version: "1.1.0",
         capabilities: {
             tools: {},
